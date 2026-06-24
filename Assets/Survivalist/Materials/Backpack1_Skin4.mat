@@ -112,11 +112,7 @@ Material:
     - _UvTiling: {r: 1, g: 1, b: 0, a: 0}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
-<<<<<<< Updated upstream
---- !u!114 &1366941631748615947
-=======
---- !u!114 &1687405175522077307
->>>>>>> Stashed changes
+--- !u!114 &7408402021590698772
 MonoBehaviour:
   m_ObjectHideFlags: 11
   m_CorrespondingSourceObject: {fileID: 0}

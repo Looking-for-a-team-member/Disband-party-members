@@ -36,6 +36,10 @@ public class RoomManager : MonoBehaviour
     [Header("--- 4종 프리팹 직접 등록 (복사본) ---")]
     [SerializeField] private GameObject[] characterPrefabs = new GameObject[4];
 
+    // [새로 추가] 게임 씬에서 실제로 컨트롤할 진짜 프리팹 공간
+    [Header("--- 인게임 진짜 캐릭터 프리팹 ---")]
+    [SerializeField] private GameObject[] gameCharacterPrefabs = new GameObject[4];
+
     private string localPlayerName = "Player";
     private GameObject[] spawnedCharacters = new GameObject[4];
 
@@ -112,7 +116,54 @@ public class RoomManager : MonoBehaviour
     {
         if (NetworkManager.Singleton.IsServer)
         {
+            // 1. 씬을 넘어가기 전에 로비에서 임시로 보여주던 프리뷰 캐릭터들을 모두 제거합니다.
+            ClearSpawnedCharacters();
+
+            // 2. 씬 로딩 완료 이벤트를 구독하여, 모든 준비가 끝난 뒤 스폰 로직을 실행하도록 예약합니다.
+            NetworkManager.Singleton.SceneManager.OnLoadEventCompleted += OnGameSceneLoaded;
+
+            // 3. GameScene으로 넘어갑니다.
             NetworkManager.Singleton.SceneManager.LoadScene("GameScene", UnityEngine.SceneManagement.LoadSceneMode.Single);
+        }
+    }
+
+    private void OnGameSceneLoaded(string sceneName, UnityEngine.SceneManagement.LoadSceneMode loadSceneMode, System.Collections.Generic.List<ulong> clientsCompleted, System.Collections.Generic.List<ulong> clientsTimedOut)
+    {
+        if (sceneName == "GameScene" && NetworkManager.Singleton.IsServer)
+        {
+            NetworkManager.Singleton.SceneManager.OnLoadEventCompleted -= OnGameSceneLoaded;
+            System.Collections.Generic.List<NetworkObject> spawnedPlayers = new System.Collections.Generic.List<NetworkObject>();
+
+            for (int i = 0; i < clientsCompleted.Count; i++)
+            {
+                ulong clientId = clientsCompleted[i];
+
+                // [수정] characterPrefabs -> gameCharacterPrefabs 로 변경
+                if (i < gameCharacterPrefabs.Length && gameCharacterPrefabs[i] != null)
+                {
+                    Vector3 spawnPos = new Vector3(i * 2.0f, 1f, 0f);
+
+                    // [수정] 진짜 프리팹을 생성
+                    GameObject playerInstance = Instantiate(gameCharacterPrefabs[i], spawnPos, Quaternion.identity);
+
+                    NetworkObject netObj = playerInstance.GetComponent<NetworkObject>();
+                    netObj.SpawnAsPlayerObject(clientId, true);
+
+                    spawnedPlayers.Add(netObj);
+                }
+            }
+
+            // ... (이하 사슬 연결 로직은 기존과 동일) ...
+            for (int i = 0; i < spawnedPlayers.Count - 1; i++)
+            {
+                RopeController rope = spawnedPlayers[i].GetComponent<RopeController>();
+                if (rope != null)
+                {
+                    rope.targetNetworkObjectId.Value = spawnedPlayers[i + 1].NetworkObjectId;
+                }
+            }
+
+            Debug.Log("✅ 모든 플레이어 스폰 및 사슬 연결 완료!");
         }
     }
 

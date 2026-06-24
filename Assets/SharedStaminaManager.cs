@@ -29,6 +29,9 @@ public class SharedStaminaManager : NetworkBehaviour
     {
         if (!IsServer) return; // 중앙 연산은 서버에서만 처리
 
+        // [핵심 추가] 네트워크 매니저가 아직 준비되지 않았을 때 발생하는 Null 예외 방지
+        if (NetworkManager.Singleton == null || NetworkManager.Singleton.ConnectedClientsList == null) return;
+
         int runningCount = 0;
 
         // 접속한 모든 플레이어의 달리기 상태를 폴링(Polling)
@@ -47,8 +50,7 @@ public class SharedStaminaManager : NetworkBehaviour
         // 달리는 사람이 한 명이라도 있다면
         if (runningCount > 0)
         {
-            // 달리는 인원수에 비례해서 스태미나를 깎습니다. 
-            // (한 명일 때와 동일한 속도로 깎으려면 runningCount 곱하기를 제거하세요)
+            // 달리는 인원수에 비례해서 스태미나를 깎습니다.
             currentStamina.Value -= (staminaDrainRate * runningCount) * Time.fixedDeltaTime;
         }
         else
